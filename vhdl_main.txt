@@ -1,0 +1,312 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.numeric_std.all;
+entity main is
+        Port ( password :       in    std_logic_vector(11 downto 0);
+            passwordSet :       in STD_LOGIC;
+            arm :               in STD_LOGIC;
+            doorpush :          in STD_LOGIC;
+            passwordconfirm :   in STD_LOGIC;
+            clk :               in STD_LOGIC;
+            reset :             in STD_LOGIC;
+            password_out :      out std_logic_vector(11 downto 0);
+            s1_led :            out STD_LOGIC;
+            s2_led :            out STD_LOGIC;
+            alarmled1 :         out STD_LOGIC;
+            alarmled2 :         out STD_LOGIC;
+            alarmled3 :         out STD_LOGIC;
+            alarm :             out STD_LOGIC;
+            state :             out std_logic_vector(2 downto 0));
+end main;
+architecture Behavioral of main is
+    signal userpassword :           std_logic_vector(11 downto 0) := "000000000000";
+    signal currentstate :           std_logic_vector(2 downto 0) := "000";
+    signal dooropencurrentstate :   std_logic_vector(1 downto 0) := "00";
+    signal idleblink :              std_logic :='1';
+    signal starttocount :           std_logic :='0';
+    signal countfinished :          std_logic :='0';
+    signal blinkled :               std_logic :='1';
+    signal idlestatus :             std_logic :='1';
+    signal status2status :          std_logic :='0';
+    signal alarm1blink :            std_logic :='0';
+    signal alarm2blink :            std_logic :='0';
+    signal alarm3blink :            std_logic :='0';
+    signal alarm1status :           std_logic :='0';
+    signal alarm2status :           std_logic :='0';
+    signal alarm3status :           std_logic :='0';
+    signal bcdcheck0 :              std_logic :='1';
+    signal bcdcheck1 :              std_logic :='1';
+    signal bcdcheck2 :              std_logic :='1';    
+    signal timer:                   integer:=0;    
+    -- timer seconds
+    constant maxtime :              natural := 30;
+    constant max_count :            natural := 4;
+    --states
+    constant idlestate :            std_logic_vector(2 downto 0) := "000";
+    constant passwordsetstate :     std_logic_vector(2 downto 0) := "001";
+    constant armstate :             std_logic_vector(2 downto 0) := "010";
+    constant dooropenstate :        std_logic_vector(2 downto 0) := "011";
+    constant alarmstate :           std_logic_vector(2 downto 0) := "100";    
+    -- open door states
+    constant firstinputstate :      std_logic_vector(1 downto 0) := "00";
+    constant secondinputstate :     std_logic_vector(1 downto 0) := "01";
+    constant thirdtinputstate :     std_logic_vector(1 downto 0) := "10";
+
+    constant wrongbcd0 :            std_logic_vector(3 downto 0) := "1010";
+    constant wrongbcd1 :            std_logic_vector(3 downto 0) := "1011";
+    constant wrongbcd2 :            std_logic_vector(3 downto 0) := "1100";
+    constant wrongbcd3 :            std_logic_vector(3 downto 0) := "1101";
+    constant wrongbcd4 :            std_logic_vector(3 downto 0) := "1110";
+    constant wrongbcd5 :            std_logic_vector(3 downto 0) := "1111";        
+begin
+    mainstate : process(clk,arm,passwordSet,passwordconfirm,reset,doorpush)
+    -- 1 means error
+    begin
+            if(reset='1') then
+                -- going back to all default values to used signals
+                currentstate <= idlestate;
+            elsif(rising_edge(clk)and reset='0')then
+                case currentstate is
+                    when idlestate  =>
+                        --Next State logic
+                        if(passwordSet='1')then
+                            currentstate <= passwordsetstate;
+                            idleblink   <=          '0';
+                            idlestatus  <=          '0';
+                        elsif(arm='1')then
+                            currentstate <= armstate;
+                            idleblink   <=          '0';
+                            idlestatus  <=          '1';
+                        else
+                        idleblink       <=          '1';
+                        idlestatus      <=          '0';                           
+                        end if;
+                        -- Output function logic
+                        dooropencurrentstate <= firstinputstate;
+                        starttocount    <=          '0';
+                        timer <= 0;
+                        status2status   <=          '0';
+                        alarm1blink     <=          '0';
+                        alarm2blink     <=          '0';
+                        alarm3blink     <=          '0';
+                        alarm1status    <=          '0';
+                        alarm2status    <=          '0';
+                        alarm3status    <=          '0';
+                        alarm           <=          '0';
+                    when passwordsetstate  =>
+                        --Next State logic
+                        if(reset ='1') then
+                            currentstate <= idlestate;
+                            idleblink   <=          '1';
+                            idlestatus  <=          '0';
+                        elsif(passwordSet='1')then   
+                            -- password check
+                            -- in project instuctions
+                            -- bcd input can not be letter
+                            -- for letter inputs I choose 0000 or 0 as output of that bcd digit
+                            case password(11 downto 8) is            
+                                when wrongbcd0 =>
+                                    bcdcheck0           <= '1';
+                                when wrongbcd1 => 
+                                    bcdcheck0           <= '1';
+                                when wrongbcd2 =>
+                                    bcdcheck0           <= '1';
+                                when wrongbcd3 =>
+                                    bcdcheck0           <= '1';
+                                when wrongbcd4 =>
+                                    bcdcheck0           <= '1';
+                                when wrongbcd5 =>
+                                    bcdcheck0           <= '1';
+                                when others =>
+                                    bcdcheck0           <= '0';
+                            end case; 
+                            case password(7 downto 4) is            
+                                when wrongbcd0 =>
+                                    bcdcheck1           <= '1';
+                                when wrongbcd1 => 
+                                    bcdcheck1           <= '1';
+                                when wrongbcd2 =>
+                                    bcdcheck1           <= '1';
+                                when wrongbcd3 =>
+                                    bcdcheck1           <= '1';
+                                when wrongbcd4 =>
+                                    bcdcheck1           <= '1';
+                                when wrongbcd5 =>
+                                    bcdcheck1           <= '1';
+                                when others =>
+                                    bcdcheck1           <= '0';
+                            end case; 
+                            case password(3 downto 0) is            
+                                when wrongbcd0 =>
+                                    bcdcheck2           <= '1';
+                                when wrongbcd1 => 
+                                    bcdcheck2           <= '1';
+                                when wrongbcd2 =>
+                                    bcdcheck2           <= '1';
+                                when wrongbcd3 =>
+                                    bcdcheck2           <= '1';
+                                when wrongbcd4 =>
+                                    bcdcheck2           <= '1';
+                                when wrongbcd5 =>
+                                    bcdcheck2           <= '1';
+                                when others =>
+                                    bcdcheck2           <= '0';
+                            end case; 
+                            if((bcdcheck0='0')) then 
+                                userpassword(11 downto 8) <= password(11 downto 8);
+                            else    
+                                userpassword(11 downto 8) <= "0000";
+                            end if;
+                            if((bcdcheck1='0')) then 
+                                userpassword(7 downto 4) <= password(7 downto 4);
+                            else 
+                                userpassword(7 downto 4) <= "0000";
+                            end if;
+                            if((bcdcheck2='0')) then 
+                                userpassword(3 downto 0) <= password(3 downto 0);
+                            else
+                                userpassword(3 downto 0) <= "0000";
+                            end if ;                                                       
+                            currentstate    <= idlestate;
+                            idleblink       <= '1';
+                            idlestatus      <= '0';
+                        else
+                        -- Output function logic
+                        idleblink           <= '0';
+                        idlestatus          <= '0';
+                        end if;
+                    when armstate       =>
+                        --Next State logic
+                        if(doorpush='1')then
+                            starttocount    <='1'; -- this line is for start counting
+                            currentstate    <= dooropenstate;
+                            status2status   <='1';
+                        end if;
+                      -- Output function logic
+                    idleblink               <= '0';
+                    idlestatus              <= '1';                        
+                    when alarmstate     =>
+                    --      alarm state                  
+                    --output function logic
+                    alarm                   <= '1';
+                    when dooropenstate  =>
+                        if(countfinished='1') then
+                            currentstate    <= alarmstate;
+                            alarm           <= '1';
+                        else
+                            case dooropencurrentstate is
+                                when firstinputstate =>
+                                    --Next State logic
+                                    if(passwordconfirm='1') then
+                                        if(password=userpassword) then
+                                            currentstate            <= idlestate;
+                                            idleblink               <= '1';
+                                            idlestatus              <= '0'; 
+                                            dooropencurrentstate    <= firstinputstate;
+                                            starttocount            <='0';
+                                            timer                   <= 0;
+                                            status2status           <= '0';
+                                            alarm1blink             <= '0';
+                                            alarm2blink             <= '0';
+                                            alarm3blink             <= '0';
+                                            alarm1status            <= '0';
+                                            alarm2status            <= '0';
+                                            alarm3status            <= '0';
+                                            alarm                   <= '0';
+                                        else
+                                            -- first wrong password
+                                            dooropencurrentstate <= secondinputstate;
+                                            alarm1status <= '1';
+                                        end if;
+                                    end if;
+                                when secondinputstate =>
+                                    --Next State logic
+                                if(passwordconfirm='1') then
+                                    if(password=userpassword) then
+                                        currentstate <= idlestate;
+                                        idleblink                   <= '1';
+                                        idlestatus                  <= '0'; 
+                                        dooropencurrentstate        <= firstinputstate;
+                                        starttocount                <='0';
+                                        timer                       <= 0;
+                                        status2status               <= '0';
+                                        alarm1blink                 <= '0';
+                                        alarm2blink                 <= '0';
+                                        alarm3blink                 <= '0';
+                                        alarm1status                <= '0';
+                                        alarm2status                <= '0';
+                                        alarm3status                <= '0';
+                                        alarm                       <= '0';
+                                        
+                                    else
+                                        -- second wrong password
+                                        dooropencurrentstate        <= thirdtinputstate;
+                                        alarm2status                <= '1';
+                                        
+                                    end if;
+                                end if;
+                                when thirdtinputstate =>   
+                                    --Next State logic
+                                    if(passwordconfirm='1') then
+                                        if(password=userpassword) then
+                                            currentstate <= idlestate;
+                                            idleblink               <= '1';
+                                            idlestatus              <= '0'; 
+                                            dooropencurrentstate    <= firstinputstate;
+                                            starttocount            <='0';
+                                            timer                   <= 0;
+                                            status2status           <= '0';
+                                            alarm1blink             <= '0';
+                                            alarm2blink             <= '0';
+                                            alarm3blink             <= '0';
+                                            alarm1status            <= '0';
+                                            alarm2status            <= '0';
+                                            alarm3status            <= '0';
+                                            alarm                   <= '0';
+                                        else
+                                            -- third wrong password
+                                            alarm1status            <= '0';
+                                            alarm2status            <= '0';
+                                            alarm1blink             <= '1';
+                                            alarm2blink             <= '1';
+                                            alarm3blink             <= '1';
+                                            currentstate            <= alarmstate;
+                                        end if;
+                                    end if;   
+                                when others =>
+                            end case;
+                        end if;   
+                        -- output function logic
+                        status2status <= '1';
+                    when others => 
+                end case;
+            end if;
+    end process mainstate;
+    state <= currentstate;
+    --blink process creates 1hz clock for us
+    blinkled <= clk;
+    s1_led <= (blinkled and idleblink) or idlestatus;
+    s2_led <= status2status;
+    alarmled1 <= (blinkled and alarm1blink) or alarm1status;
+    alarmled2 <= (blinkled and alarm2blink) or alarm2status;
+    alarmled3 <= (blinkled and alarm3blink) or alarm3status;
+    state <= currentstate;
+    password_out <= userpassword;
+    -- for counting 30 to 1  
+    countsecond : process(blinkled)
+    variable count : natural range 0 to maxtime :=0;
+    begin
+    if(starttocount='0') then
+        count:=0;
+        countfinished <= '0';
+    elsif(rising_edge(blinkled)) then
+        if count < maxtime then
+            count := count +1;          
+        else 
+            countfinished <= '1';
+        end if;
+    end if;
+    end process countsecond;
+end Behavioral;
+
+
