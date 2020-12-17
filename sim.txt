@@ -1,0 +1,110 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; 
+use STD.TEXTIO.ALL;
+USE IEEE.STD_LOGIC_TEXTIO.ALL;
+
+entity sim is
+--  Port ( );
+end sim;
+
+architecture Behavioral of sim is
+    component main 
+      Port ( password:                  in std_logic_vector(11 downto 0);
+         passwordSet:                   in std_logic;
+         arm:                           in std_logic;
+         doorpush:                      in std_logic;
+         passwordconfirm:               in std_logic;
+         clk:                           in std_logic;
+         reset:                         in std_logic;
+         password_out:                  out std_logic_vector(11 downto 0);
+         s1_led:                        out std_logic;
+         s2_led:                        out std_logic;
+         alarmled1:                     out std_logic;
+         alarmled2:                     out std_logic;
+         alarmled3:                     out std_logic;
+         alarm:                         out std_logic ;      
+         state :                        out std_logic_vector(2 downto 0) 
+  );
+  end component main;
+signal state :                                              std_logic_vector(2 downto 0) ;
+signal passwordSet,arm,doorpush,passwordconfirm,reset :     std_logic:='0';
+signal clk:                                                 std_logic;
+signal s1_led,s2_led,alarmled1,alarmled2,alarmled3,alarm:   std_logic;
+signal password:                                            std_logic_vector(11 downto 0):="000000000000";
+signal password_out:                                        std_logic_vector(11 downto 0);
+-----------------------------------------------------------------------
+constant clk_period: time:=10ns;
+file file_input  : text;
+file file_output : text;
+begin
+
+DUT: main port map(password=>password,
+                   passwordSet => passwordSet,arm => arm,doorpush => doorpush
+                   ,passwordconfirm => passwordconfirm,clk => clk,reset => reset, password_out => password_out,s1_led => s1_led
+                   ,s2_led => s2_led,alarmled1 => alarmled1, alarmled2 => alarmled2, alarmled3 => alarmled3, alarm => alarm, state => state);
+clk_process:process
+begin
+    clk<='1';
+    wait for clk_period/2;
+    clk<='0';
+    wait for clk_period/2;
+end process;
+
+reading_writing:process
+ 
+variable l_in:line;
+variable l_out:line;
+variable l_space:character;
+variable vpasswordSetupButton,varmModeButton,vdoorOpenButton:std_logic;
+variable vpasswordEntryButton,vresetButtonDOM :std_logic;
+variable vpassword_in:std_logic_vector(11 downto 0); 
+begin
+    wait for clk_period*2;    
+--    wait for 1us;
+file_open(file_input, "C:/simulation.txt",  read_mode);
+file_open(file_output,"C:/mucahit_result.txt", write_mode);
+While not endfile(file_input) loop
+    readline(file_input, l_in);
+    read(l_in, vpassword_in);
+    read(l_in, l_space);
+    read(l_in, vpasswordSetupButton);
+    read(l_in, l_space);
+    read(l_in, varmModeButton);
+    read(l_in, l_space);
+    read(l_in, vdoorOpenButton);
+    read(l_in, l_space);
+    read(l_in, vpasswordEntryButton);
+    read(l_in, l_space);
+    read(l_in, vresetButtonDOM);
+    --assign the read instance to inputs
+    password<=vpassword_in;
+    passwordSet<=vpasswordSetupButton;
+    arm<=varmModeButton;
+    doorpush<=vdoorOpenButton;
+    passwordconfirm<=vpasswordEntryButton;
+    reset<=vresetButtonDOM;
+    wait for clk_period;
+    -- write outputs to the txt file
+    write(l_out,password_out);
+    write(l_out,' ');
+    write(l_out,s1_led);
+    write(l_out,string'(" "));
+    write(l_out,s2_led);
+    write(l_out,string'(" "));
+    write(l_out,alarmled1);
+    write(l_out,string'(" "));
+    write(l_out,alarmled2);
+    write(l_out,string'(" "));
+    write(l_out,alarmled3);
+    write(l_out,string'(" "));
+    write(l_out,alarm);
+    writeline(file_output, l_out);
+end loop;
+file_close(file_input);
+file_close(file_output);
+
+wait;
+end process; 
+
+end Behavioral;
+
